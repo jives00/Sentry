@@ -45,6 +45,8 @@ export interface RingEvents {
   ding: [id: string, on: boolean];
   snapshot: [id: string, jpeg: Buffer];
   online: [id: string, online: boolean];
+  /** what ring-mqtt reports it's actually doing */
+  snapshotConfig: [id: string, config: { mode?: string; interval?: number }];
 }
 
 export class RingBridge extends EventEmitter<RingEvents> {
@@ -73,6 +75,8 @@ export class RingBridge extends EventEmitter<RingEvents> {
         `${this.ringTopic}/+/camera/+/ding/state`,
         `${this.ringTopic}/+/camera/+/snapshot/image`,
         `${this.ringTopic}/+/camera/+/status`,
+        `${this.ringTopic}/+/camera/+/snapshot_mode/state`,
+        `${this.ringTopic}/+/camera/+/snapshot_interval/state`,
         'homeassistant/+/+/+/config',
       ]);
     });
@@ -84,9 +88,16 @@ export class RingBridge extends EventEmitter<RingEvents> {
     this.client?.end(true);
   }
 
-  /** Ring's interval snapshots; ring-mqtt saves the value in its own state file. */
-  setSnapshotInterval(id: string, location: string, seconds: number) {
-    this.client?.publish(`${this.ringTopic}/${location}/camera/${id}/snapshot_interval/command`, String(seconds));
+  /**
+   * Turns on interval snapshots (plus motion/ding ones) every `seconds`. The mode has to be set
+   * explicitly: ring-mqtt's default "Auto" skips interval snapshots on any camera that reports
+   * running on battery, which includes hardwired doorbells that trickle-charge one. ring-mqtt
+   * saves both values in its own state file.
+   */
+  setSnapshots(id: string, location: string, seconds: number) {
+    const base = `${this.ringTopic}/${location}/camera/${id}`;
+    this.client?.publish(`${base}/snapshot_mode/command`, 'All');
+    this.client?.publish(`${base}/snapshot_interval/command`, String(seconds));
   }
 
   private handle(topic: string, payload: Buffer) {
@@ -110,5 +121,7 @@ export class RingBridge extends EventEmitter<RingEvents> {
     else if (t.entity === 'ding' && t.leaf === 'state') this.emit('ding', t.device, text() === 'ON');
     else if (t.entity === 'snapshot' && t.leaf === 'image' && payload.length > 0) this.emit('snapshot', t.device, payload);
     else if (t.entity === 'status') this.emit('online', t.device, text() === 'online');
+    else if (t.entity === 'snapshot_mode' && t.leaf === 'state') this.emit('snapshotConfig', t.device, { mode: text() });
+    else if (t.entity === 'snapshot_interval' && t.leaf === 'state') this.emit('snapshotConfig', t.device, { interval: Number(text()) });
   }
 }

@@ -32,6 +32,7 @@ const liveView = new LiveView(path.join(DATA_DIR, 'live'), log);
 interface Live {
   recorder: ClipRecorder;
   online: boolean | null;
+  snapshotConfig: { mode?: string; interval?: number };
 }
 const live = new Map<string, Live>();
 
@@ -42,6 +43,7 @@ function liveFor(id: string): Live {
   if (!entry) {
     entry = {
       online: null,
+      snapshotConfig: {},
       recorder: new ClipRecorder({
         root: FOOTAGE_ROOT,
         slug: () => settings.get().cameras[id]?.slug ?? id,
@@ -69,12 +71,13 @@ ring.on('camera', (id, location, name) => {
     settings.updateCamera(id, patch);
   }
   liveFor(id);
-  ring.setSnapshotInterval(id, location, settings.get().snapshotInterval);
+  ring.setSnapshots(id, location, settings.get().snapshotInterval);
 });
 
 ring.on('motion', (id, on) => enabled(id) && liveFor(id).recorder.motion(on));
 ring.on('ding', (id, on) => enabled(id) && liveFor(id).recorder.ding(on));
 ring.on('online', (id, online) => (liveFor(id).online = online));
+ring.on('snapshotConfig', (id, c) => Object.assign(liveFor(id).snapshotConfig, c));
 ring.on('snapshot', (id, jpeg) => {
   const cam = settings.get().cameras[id];
   if (!cam?.enabled) return;
@@ -135,6 +138,7 @@ app.get('/api/status', async () => ({
       id,
       ...cam,
       online: l?.online ?? null,
+      ringSnapshots: l?.snapshotConfig ?? {},
       recording: l?.recorder.recording ?? false,
       live: liveView.isLive(cam.slug),
       lastEvent: l?.recorder.lastEvent ?? null,
@@ -149,7 +153,7 @@ app.put('/api/settings', async (req) => {
   const before = settings.get().snapshotInterval;
   const next = settings.set(req.body);
   if (next.snapshotInterval !== before) {
-    for (const [id, cam] of Object.entries(next.cameras)) ring.setSnapshotInterval(id, cam.location, next.snapshotInterval);
+    for (const [id, cam] of Object.entries(next.cameras)) ring.setSnapshots(id, cam.location, next.snapshotInterval);
   }
   runRetention();
   return next;
