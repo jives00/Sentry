@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
 
   ring-mqtt:
-    image: ghcr.io/tsightler/ring-mqtt:latest
+    image: tsightler/ring-mqtt:latest   # Docker Hub; not published on ghcr despite the wiki
     container_name: sentry-ring
     # RTSP (8554) stays on the compose network. 55123 is ring-mqtt's login page, used once to
     # get a Ring refresh token; it goes quiet after that.
