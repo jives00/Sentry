@@ -79,6 +79,10 @@ export class RingBridge extends EventEmitter<RingEvents> {
         `${this.ringTopic}/+/camera/+/snapshot_interval/state`,
         'homeassistant/+/+/+/config',
       ]);
+      // ring-mqtt only announces devices and state at its own startup, or when it sees Home
+      // Assistant come online. Posing as HA makes it republish everything, so a Sentry restart
+      // still learns about cameras that ring-mqtt announced earlier.
+      client.publish('homeassistant/status', 'online');
     });
     client.on('error', (err) => this.log.warn(`MQTT: ${err.message}`));
     client.on('message', (topic, payload) => this.handle(topic, payload));
