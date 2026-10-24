@@ -5,12 +5,14 @@ first camera is a Ring doorbell, reached through [ring-mqtt](https://github.com/
 without a Ring Protect subscription.
 
 - **Event clips:** when Ring reports motion or a doorbell press, Sentry opens the live stream
-  and records until motion has been quiet for the post-roll (20 s by default). The first few
-  seconds of each event are missed while the stream starts.
-- **Snapshots:** Ring's interval snapshots (30 s by default), saved as they arrive.
+  and records 60 s (changeable; a doorbell press extends it). The first few seconds of each event
+  are missed while the stream starts.
+- **Snapshots:** Ring's interval snapshots (30 s by default, 640×360), saved as they arrive.
 - **Viewer:** pick a day, drag along the 24-hour timeline to scrub snapshots, play them back as
-  a timelapse, or click an event to play its clip. Keys: ←/→ (Shift for ×10), space, `[`/`]`
-  for days, Esc to leave a clip.
+  a timelapse, or click an event to play its clip at 1×, 2× or 4×. **Live** opens the doorbell's
+  live stream; Ring sends no motion events while it's open, so nothing records until you close
+  it. Keys: ←/→ (Shift for ×10), space, `[`/`]` for days, `L` for live, Esc to leave a clip or
+  live view.
 - **Retention:** snapshots 30 days, clips 90 days, changeable in settings (⚙).
 
 Footage goes to `/volume2/SecurityCameras/Sentry/<camera>/YYYY/MM/DD/{events,snapshots}/`.

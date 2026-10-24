@@ -18,8 +18,8 @@ export const SettingsSchema = z.object({
   eventDays: z.number().int().min(1).max(730),
   /** seconds between Ring interval snapshots; Ring may not honor very short values */
   snapshotInterval: z.number().int().min(10).max(600),
-  /** keep recording this long after motion stops (or after a ding) */
-  postRoll: z.number().int().min(5).max(120),
+  /** seconds each clip runs after its latest motion event or ding */
+  clipLength: z.number().int().min(15).max(300),
   /** keyed by Ring device id */
   cameras: z.record(CameraSchema),
 });
@@ -31,7 +31,7 @@ export const DEFAULTS: Settings = {
   snapshotDays: 30,
   eventDays: 90,
   snapshotInterval: 30,
-  postRoll: 20,
+  clipLength: 60,
   cameras: {},
 };
 

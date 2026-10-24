@@ -79,3 +79,13 @@ dialog input[type=number] { width: 80px; margin: 0 4px; }
   .hours span:nth-child(odd) { color: transparent; }
   #speed { display: none; }
 }
+
+/* Author display rules (.stage img/video, .empty) would otherwise beat the hidden attribute. */
+[hidden] { display: none !important; }
+
+.overlay-r { display: flex; gap: 6px; align-items: flex-start; }
+.rates { display: flex; gap: 2px; }
+.rates .chip.on { background: var(--accent); }
+.live-btn { color: var(--ding); font-weight: 600; }
+.live-btn.on { background: var(--ding); color: #fff; border-color: var(--ding); }
+.live-note { position: absolute; left: 10px; right: 10px; bottom: 54px; text-align: center; font-size: 12px; color: var(--muted); pointer-events: none; }

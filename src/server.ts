@@ -4,6 +4,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { FastifyError } from 'fastify';
 import { ZodError } from 'zod';
 import { dayIndex, listDays, sweep } from './library';
+import { LiveView } from './live';
 import { DAY_RE, slugify } from './paths';
 import { ClipRecorder } from './recorder';
 import { RingBridge } from './ring';
@@ -26,6 +27,7 @@ fs.mkdirSync(FOOTAGE_ROOT, { recursive: true });
 const settings = new SettingsStore(path.join(DATA_DIR, 'settings.json'), log);
 const ring = new RingBridge(MQTT_URL, log);
 const snapshots = new SnapshotWriter(FOOTAGE_ROOT);
+const liveView = new LiveView(path.join(DATA_DIR, 'live'), log);
 
 interface Live {
   recorder: ClipRecorder;
@@ -44,7 +46,7 @@ function liveFor(id: string): Live {
         root: FOOTAGE_ROOT,
         slug: () => settings.get().cameras[id]?.slug ?? id,
         rtspUrl: `${RTSP_BASE}/${id}_live`,
-        postRoll: () => settings.get().postRoll,
+        clipLength: () => settings.get().clipLength,
         log,
       }),
     };
@@ -104,6 +106,14 @@ app.register(fastifyStatic, {
   maxAge: '7d',
   immutable: true,
 });
+// The live playlist rewrites every couple of seconds, so it must never be cached.
+app.register(fastifyStatic, {
+  root: liveView.dir,
+  prefix: '/live/',
+  decorateReply: false,
+  cacheControl: false,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-store'),
+});
 
 app.setErrorHandler((err: FastifyError | Error, _req, reply) => {
   if (err instanceof ZodError) {
@@ -126,6 +136,7 @@ app.get('/api/status', async () => ({
       ...cam,
       online: l?.online ?? null,
       recording: l?.recorder.recording ?? false,
+      live: liveView.isLive(cam.slug),
       lastEvent: l?.recorder.lastEvent ?? null,
       lastSnapshot: snapshots.lastAt.get(cam.slug) ?? null,
       error: l?.recorder.lastError ?? null,
@@ -157,6 +168,20 @@ app.get<{ Params: { slug: string; date: string } }>('/api/cameras/:slug/days/:da
   return dayIndex(FOOTAGE_ROOT, req.params.slug, req.params.date);
 });
 
+const idBySlug = (slug: string) => Object.entries(settings.get().cameras).find(([, c]) => c.slug === slug)?.[0];
+
+// Live view: the page POSTs every few seconds while it's open, and DELETEs when it closes.
+app.post<{ Params: { slug: string } }>('/api/cameras/:slug/live', async (req, reply) => {
+  const id = idBySlug(req.params.slug);
+  if (!id) return reply.status(404).send({ error: 'No such camera' });
+  const s = liveView.ping(req.params.slug, `${RTSP_BASE}/${id}_live`);
+  return { ...s, playlist: `/live/${s.playlist}` };
+});
+app.delete<{ Params: { slug: string } }>('/api/cameras/:slug/live', async (req) => {
+  liveView.stop(req.params.slug);
+  return { ok: true };
+});
+
 async function main() {
   ring.start();
   runRetention();
@@ -166,6 +191,7 @@ async function main() {
 
 async function shutdown() {
   ring.stop();
+  liveView.stopAll();
   await Promise.all([...live.values()].map((l) => l.recorder.shutdown()));
   await app.close();
   process.exit(0);

@@ -16,6 +16,7 @@
       <input type="date" id="date" aria-label="Day">
       <button id="nextDay" aria-label="Next day" title="Next day (])">›</button>
     </div>
+    <button id="liveBtn" class="live-btn" title="Watch live (L)">● Live</button>
     <span id="status" class="status" title="">●</span>
     <button id="openSettings" class="ghost" aria-label="Settings" title="Settings">⚙</button>
   </header>
@@ -25,7 +26,16 @@
       <img id="frame" alt="">
       <video id="clip" controls playsinline hidden></video>
       <div id="empty" class="empty" hidden></div>
-      <div class="overlay"><span id="when"></span><button id="backToSnaps" class="chip" hidden>✕ Back to snapshots</button></div>
+      <div class="overlay">
+        <span id="when"></span>
+        <div class="overlay-r">
+          <div id="rates" class="rates" hidden>
+            <button data-rate="1" class="chip on">1×</button><button data-rate="2" class="chip">2×</button><button data-rate="4" class="chip">4×</button>
+          </div>
+          <button id="backToSnaps" class="chip" hidden>✕ Back to snapshots</button>
+        </div>
+      </div>
+      <div id="liveNote" class="live-note" hidden>Ring pauses motion events while live view is open, so nothing records until you close it.</div>
     </section>
 
     <section class="controls">
@@ -57,7 +67,8 @@
       <label>Keep event clips for <input type="number" name="eventDays" min="1" max="730" required> days</label>
       <label>Snapshot every <input type="number" name="snapshotInterval" min="10" max="600" required> seconds</label>
       <p class="note">Ring takes the snapshots and may not honor very short intervals.</p>
-      <label>Keep recording <input type="number" name="postRoll" min="5" max="120" required> seconds after motion stops</label>
+      <label>Record <input type="number" name="clipLength" min="15" max="300" required> seconds per event</label>
+      <p class="note">A doorbell press extends the clip. If motion continues, Ring sends a new event once the clip ends.</p>
       <h3>Cameras</h3>
       <div id="cameraRows"></div>
       <p id="settingsError" class="error" hidden></p>
@@ -68,6 +79,7 @@
     </form>
   </dialog>
 
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

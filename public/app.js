@@ -29,6 +29,7 @@ const state = {
   pos: -1,
   playing: null,
   clip: null,
+  live: null,
 };
 
 /* ---------- snapshots ---------- */
@@ -62,6 +63,7 @@ function setCursor(t) {
 function showSnapshot(pos) {
   const snaps = state.day.snapshots;
   if (!snaps.length) return renderEmpty();
+  stopLive();
   closeClip();
   state.pos = Math.max(0, Math.min(snaps.length - 1, pos));
   const snap = snaps[state.pos];
@@ -90,14 +92,18 @@ function renderEmpty() {
 
 function playClip(ev) {
   stop();
+  stopLive();
   state.clip = ev;
   const v = $('clip');
   $('frame').hidden = true;
   $('empty').hidden = true;
   v.hidden = false;
   v.src = `/footage/${ev.file}`;
+  // Changing src resets playbackRate to the default, so set both.
+  v.defaultPlaybackRate = v.playbackRate = clipRate;
   v.play().catch(() => {});
   $('backToSnaps').hidden = false;
+  $('rates').hidden = false;
   $('when').textContent = `${fmtClock(ev.t)} · ${ev.kind === 'ding' ? 'Doorbell' : 'Motion'}`;
   setCursor(ev.t);
   renderEventList();
@@ -112,12 +118,108 @@ function closeClip() {
   v.load();
   v.hidden = true;
   $('backToSnaps').hidden = true;
+  $('rates').hidden = true;
   renderEventList();
 }
 
 $('clip').addEventListener('timeupdate', () => {
   if (state.clip) setCursor(state.clip.t + $('clip').currentTime);
 });
+
+/* Clip speed (1×/2×/4×) and mute (the player's own button) are remembered per browser. */
+let clipRate = Number(store.get('sentry-rate')) || 1;
+function renderRates() {
+  for (const b of $('rates').querySelectorAll('[data-rate]')) b.classList.toggle('on', Number(b.dataset.rate) === clipRate);
+}
+renderRates();
+$('rates').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rate]');
+  if (!b) return;
+  clipRate = Number(b.dataset.rate);
+  $('clip').defaultPlaybackRate = $('clip').playbackRate = clipRate;
+  store.set('sentry-rate', String(clipRate));
+  renderRates();
+});
+$('clip').muted = store.get('sentry-muted') === '1';
+$('clip').addEventListener('volumechange', () => store.set('sentry-muted', $('clip').muted ? '1' : '0'));
+
+/* ---------- live view ---------- */
+
+function liveUrl() {
+  return `/api/cameras/${state.slug}/live`;
+}
+
+async function startLive() {
+  if (!state.slug || state.live) return;
+  stop();
+  closeClip();
+  const live = (state.live = { slug: state.slug, hls: null, timer: null });
+  $('liveBtn').classList.add('on');
+  $('liveBtn').textContent = '■ Stop live';
+  $('frame').hidden = true;
+  $('empty').hidden = false;
+  $('empty').textContent = 'Starting live view… (Ring takes a few seconds)';
+  $('when').textContent = 'Live';
+  $('liveNote').hidden = false;
+
+  const ping = () => api(liveUrl(), { method: 'POST' });
+  try {
+    let s = await ping();
+    for (let i = 0; !s.ready && i < 30 && state.live === live; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      s = await ping();
+    }
+    if (state.live !== live) return;
+    if (!s.ready) throw new Error("The doorbell's stream didn't start.");
+    live.timer = setInterval(() => ping().catch(() => {}), 10_000);
+
+    const v = $('clip');
+    $('empty').hidden = true;
+    v.hidden = false;
+    v.defaultPlaybackRate = v.playbackRate = 1;
+    if (window.Hls && Hls.isSupported()) {
+      live.hls = new Hls({ liveSyncDurationCount: 2 });
+      live.hls.loadSource(s.playlist);
+      live.hls.attachMedia(v);
+    } else {
+      v.src = s.playlist; // Safari plays HLS natively
+    }
+    v.play().catch(() => {});
+  } catch (err) {
+    if (state.live !== live) return;
+    stopLive();
+    $('frame').hidden = true;
+    $('empty').hidden = false;
+    $('empty').textContent = `Live view failed: ${err.message}`;
+  }
+}
+
+function stopLive() {
+  const live = state.live;
+  if (!live) return;
+  state.live = null;
+  clearInterval(live.timer);
+  if (live.hls) live.hls.destroy();
+  const v = $('clip');
+  v.pause();
+  v.removeAttribute('src');
+  v.load();
+  v.hidden = true;
+  $('liveNote').hidden = true;
+  $('liveBtn').classList.remove('on');
+  $('liveBtn').textContent = '● Live';
+  fetch(`/api/cameras/${live.slug}/live`, { method: 'DELETE', keepalive: true }).catch(() => {});
+}
+
+$('liveBtn').addEventListener('click', () => {
+  if (state.live) {
+    stopLive();
+    showSnapshot(state.day.snapshots.length - 1);
+  } else {
+    startLive();
+  }
+});
+window.addEventListener('pagehide', stopLive);
 
 $('backToSnaps').addEventListener('click', () => {
   const t = state.clip ? state.clip.t + $('clip').currentTime : 0;
@@ -218,7 +320,7 @@ async function loadDay({ keepPlace = false } = {}) {
   }
   renderTimeline();
   renderEventList();
-  if (state.clip) return;
+  if (state.clip || state.live) return;
   const atEnd = state.pos >= state.day.snapshots.length - 2;
   if (keepPlace && !atEnd) return;
   // Today opens on the latest frame (and follows it); past days open at the first one.
@@ -231,6 +333,7 @@ function setDate(iso) {
   $('date').value = state.date;
   $('date').max = today;
   stop();
+  stopLive();
   closeClip();
   state.pos = -1;
   loadDay();
@@ -291,7 +394,7 @@ let settingsCache = null;
 $('openSettings').addEventListener('click', async () => {
   settingsCache = await api('/api/settings');
   const f = $('settingsForm');
-  for (const k of ['snapshotDays', 'eventDays', 'snapshotInterval', 'postRoll']) f.elements[k].value = settingsCache[k];
+  for (const k of ['snapshotDays', 'eventDays', 'snapshotInterval', 'clipLength']) f.elements[k].value = settingsCache[k];
   const rows = Object.entries(settingsCache.cameras);
   $('cameraRows').innerHTML = rows.length
     ? rows
@@ -308,7 +411,7 @@ $('settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = $('settingsForm');
   const next = structuredClone(settingsCache);
-  for (const k of ['snapshotDays', 'eventDays', 'snapshotInterval', 'postRoll']) next[k] = Number(f.elements[k].value);
+  for (const k of ['snapshotDays', 'eventDays', 'snapshotInterval', 'clipLength']) next[k] = Number(f.elements[k].value);
   for (const el of $('cameraRows').querySelectorAll('[data-id]')) {
     next.cameras[el.dataset.id][el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value.trim();
   }
@@ -334,6 +437,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '[') shiftDay(-1);
   else if (e.key === ']') shiftDay(1);
   else if (e.key === 'Escape' && state.clip) $('backToSnaps').click();
+  else if (e.key === 'l' || e.key === 'L') $('liveBtn').click();
+  else if (e.key === 'Escape' && state.live) $('liveBtn').click();
   else return;
 });
 
