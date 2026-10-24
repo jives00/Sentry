@@ -1,0 +1,25 @@
+{
+  "name": "sentry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Records the NAS's security cameras (starting with the Ring doorbell) and serves a playback site.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/static": "^7",
+    "fastify": "^4",
+    "mqtt": "^5",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

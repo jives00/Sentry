@@ -1,0 +1,47 @@
+# Lives at /volume2/docker/sentry on the NAS, next to mosquitto/ and ring-mqtt/ (see nas/).
+services:
+  sentry:
+    image: ghcr.io/jives00/sentry:latest
+    container_name: sentry
+    ports:
+      - "3014:3014"
+    environment:
+      - TZ=America/Chicago
+      - MQTT_URL=mqtt://mosquitto:1883
+      - RTSP_BASE=rtsp://ring-mqtt:8554
+    volumes:
+      - /volume2/docker/sentry/data:/data
+      # Sentry's own subfolder. Never the share's top-level YYYY/MM/DD folders: the DSM
+      # daily-summary task concatenates every .mp4 it finds there.
+      - /volume2/SecurityCameras/Sentry:/footage
+    depends_on:
+      - mosquitto
+      - ring-mqtt
+    restart: unless-stopped
+
+  ring-mqtt:
+    image: ghcr.io/tsightler/ring-mqtt:latest
+    container_name: sentry-ring
+    # RTSP (8554) stays on the compose network. 55123 is ring-mqtt's login page, used once to
+    # get a Ring refresh token; it goes quiet after that.
+    ports:
+      - "55123:55123"
+    environment:
+      - TZ=America/Chicago
+    volumes:
+      # config.json plus ring-state.json (the refresh token; treat it like a password).
+      - /volume2/docker/sentry/ring-mqtt:/data
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: sentry-mqtt
+    volumes:
+      - /volume2/docker/sentry/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentry</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='%23e5484d'/><circle cx='12' cy='12' r='4' fill='%23fff'/></svg>">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <h1>Sentry</h1>
+    <select id="camera" aria-label="Camera"></select>
+    <div class="day">
+      <button id="prevDay" aria-label="Previous day" title="Previous day ([)">‹</button>
+      <input type="date" id="date" aria-label="Day">
+      <button id="nextDay" aria-label="Next day" title="Next day (])">›</button>
+    </div>
+    <span id="status" class="status" title="">●</span>
+    <button id="openSettings" class="ghost" aria-label="Settings" title="Settings">⚙</button>
+  </header>
+
+  <main>
+    <section class="stage">
+      <img id="frame" alt="">
+      <video id="clip" controls playsinline hidden></video>
+      <div id="empty" class="empty" hidden></div>
+      <div class="overlay"><span id="when"></span><button id="backToSnaps" class="chip" hidden>✕ Back to snapshots</button></div>
+    </section>
+
+    <section class="controls">
+      <button id="play" aria-label="Play" title="Play (space)">▶</button>
+      <select id="speed" aria-label="Playback speed">
+        <option value="2">2 fps</option>
+        <option value="5" selected>5 fps</option>
+        <option value="15">15 fps</option>
+        <option value="30">30 fps</option>
+      </select>
+      <div class="timeline" id="timeline">
+        <div class="hours" id="hours"></div>
+        <div class="density" id="density"></div>
+        <div class="marks" id="marks"></div>
+        <div class="cursor" id="cursor"></div>
+      </div>
+    </section>
+
+    <section class="events">
+      <h2>Events <span id="eventCount" class="meta"></span></h2>
+      <ol id="eventList"></ol>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <form method="dialog" id="settingsForm">
+      <h2>Settings</h2>
+      <label>Keep snapshots for <input type="number" name="snapshotDays" min="1" max="365" required> days</label>
+      <label>Keep event clips for <input type="number" name="eventDays" min="1" max="730" required> days</label>
+      <label>Snapshot every <input type="number" name="snapshotInterval" min="10" max="600" required> seconds</label>
+      <p class="note">Ring takes the snapshots and may not honor very short intervals.</p>
+      <label>Keep recording <input type="number" name="postRoll" min="5" max="120" required> seconds after motion stops</label>
+      <h3>Cameras</h3>
+      <div id="cameraRows"></div>
+      <p id="settingsError" class="error" hidden></p>
+      <div class="actions">
+        <button value="cancel" formnovalidate class="ghost">Cancel</button>
+        <button id="saveSettings" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+:root {
+  --bg: #0e1013;
+  --panel: #171a1f;
+  --line: #2a2f37;
+  --text: #e6e8eb;
+  --muted: #8b93a0;
+  --accent: #4f8cff;
+  --motion: #f5a524;
+  --ding: #e5484d;
+  --ok: #30a46c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, select, input { font: inherit; color: inherit; }
+button, select, input[type=date], input[type=number], input[type=text] {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.ghost { background: transparent; }
+.meta, .note { color: var(--muted); font-weight: normal; }
+.note { font-size: 12px; margin: -4px 0 8px; }
+
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0 8px 0 0; letter-spacing: .02em; }
+.day { display: flex; gap: 4px; }
+.status { margin-left: auto; font-size: 12px; color: var(--muted); }
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--ding); }
+.status.rec { color: var(--ding); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { opacity: .35; } }
+
+main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+
+.stage { position: relative; background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; }
+.stage img, .stage video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.stage .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 16px; }
+.overlay { position: absolute; left: 10px; top: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; }
+.overlay > * { pointer-events: auto; }
+#when { background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.chip { background: rgba(0,0,0,.6); border: none; }
+
+.controls { display: flex; gap: 8px; align-items: center; }
+#play { width: 40px; }
+.timeline { position: relative; flex: 1; height: 44px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: crosshair; touch-action: none; user-select: none; }
+.hours { position: absolute; inset: 0; display: flex; }
+.hours span { flex: 1; border-left: 1px solid var(--line); font-size: 10px; color: var(--muted); padding: 2px 3px; }
+.hours span:first-child { border-left: none; }
+.density { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; }
+.density i { position: absolute; bottom: 0; height: 6px; background: var(--accent); opacity: .45; }
+.marks { position: absolute; left: 0; right: 0; top: 16px; bottom: 8px; }
+.marks b { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: 2px; background: var(--motion); }
+.marks b.ding { background: var(--ding); }
+.cursor { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); pointer-events: none; }
+
+.events h2 { font-size: 14px; margin: 0 0 8px; }
+#eventList { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+#eventList button { width: 100%; text-align: left; display: flex; gap: 8px; align-items: center; }
+#eventList button.active { border-color: var(--accent); }
+#eventList .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--motion); flex: none; }
+#eventList .ding .dot { background: var(--ding); }
+#eventList .dur { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; width: min(460px, calc(100vw - 32px)); padding: 20px; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog h2 { margin: 0 0 14px; font-size: 16px; }
+dialog h3 { margin: 16px 0 8px; font-size: 13px; color: var(--muted); }
+dialog label { display: block; margin-bottom: 10px; }
+dialog input[type=number] { width: 80px; margin: 0 4px; }
+.camrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.camrow input[type=text] { flex: 1; }
+.camrow code { color: var(--muted); font-size: 12px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.error { color: var(--ding); }
+
+@media (max-width: 600px) {
+  .hours span:nth-child(odd) { color: transparent; }
+  #speed { display: none; }
+}
